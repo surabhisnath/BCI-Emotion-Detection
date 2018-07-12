@@ -1,12 +1,13 @@
 clear;
 load matrix_new;
+load chanlocs;
 
 global x;
 
 setGlobalx(1);
+% rng(6)
 
-
-rng(6);
+% -------------------------------------
 % clear
 % clc
 % 
@@ -63,37 +64,64 @@ rng(6);
 % end
 % 
 % save('matrix_new', 'matrix_new');
+% ---------------------------------------------------------------
 
 % matrix_new - 9 x 20 x 128 x 3
 
-total = 20;
+total = 180;
+total_person = 20;
+total_emotion = 9;
 
 theta = matrix_new(:,:,:,1);
 alpha = matrix_new(:,:,:,2);
 beta = matrix_new(:,:,:,3);
 
-resized_alpha = zeros(180,128);
-resized_beta = zeros(180,128);
-resized_theta = zeros(180,128);
+resized_alpha_emotion = zeros(180,128); % first 20 rows are one emotion (for all people), next 20 are next emotion..
+resized_beta_emotion = zeros(180,128);
+resized_theta_emotion = zeros(180,128);
+
+resized_alpha_person = zeros(180,128);  % first 9 rows are one person (all emotions of that person), next 9 are next person..
+resized_beta_person = zeros(180,128);
+resized_theta_person = zeros(180,128);
 
 for i = 1:9
-    resized_alpha(total*(i-1)+1:total*(i-1)+total,:) = alpha(i,:,:);
-    resized_beta(total*(i-1)+1:total*(i-1)+total,:) = beta(i,:,:);
-    resized_theta(total*(i-1)+1:total*(i-1)+total,:) = theta(i,:,:);
+    resized_alpha_emotion(total_person*(i-1)+1:total_person*(i-1)+total_person,:) = alpha(i,:,:);
+    resized_beta_emotion(total_person*(i-1)+1:total_person*(i-1)+total_person,:) = beta(i,:,:);
+    resized_theta_emotion(total_person*(i-1)+1:total_person*(i-1)+total_person,:) = theta(i,:,:);
 end
 
+for i = 1:20
+    resized_alpha_person(total_emotion*(i-1)+1:total_emotion*(i-1)+total_emotion,:) = alpha(:,i,:);
+    resized_beta_person(total_emotion*(i-1)+1:total_emotion*(i-1)+total_emotion,:) = beta(:,i,:);
+    resized_theta_person(total_emotion*(i-1)+1:total_emotion*(i-1)+total_emotion,:) = theta(:,i,:);
+end
+
+% ----------------------------------------------------------------
+
+% Perform normalization
+
+% medians_emotion = median(resized_alpha_emotion')';
+% medians_person = median(resized_alpha_person')';
+% tosub1 = repmat(medians_emotion,1,128);
+% tosub2 = repmat(medians_person,1,128);
+% resized_alpha_emotion = resized_alpha_emotion - tosub1;
+% resized_alpha_person = resized_alpha_person - tosub2;
 
 % -----------------------------------------------------------------------
 % SUPERVIZED
 
 % Divide into test and train
-% 
-% numtrain = 15;
-% numtest = 5;
-% class_labels = [1,2,3,4,5,6,7,8,9];
-% 
+
+numtrain = 145;
+numtest = 35;
+class_labels = [1,2,3,4,5,6,7,8,9];
+% class_labels = [1,2,2,1,2,2,1,1,1];
+% class_labels = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+
+% ----------------------------------------------------------------
+
 % train = matrix_new(:,1:numtrain,:,:);
-% test = matrix_new(:,numtrain+1:total,:,:);
+% test = matrix_new(:,numtrain+1:total_,:,:);
 % train_theta = train(:,:,:,1);
 % train_alpha = train(:,:,:,2);
 % train_beta = train(:,:,:,3);
@@ -118,24 +146,28 @@ end
 % test_Y
 % Accuracy = (nnz(prediction==test_Y)/(numtest*9))*100
 
+% ------------------------------------------------------------------
 % Try using random sampling to collect test and train data
 
-% labels = repmat(class_labels,total,1);
+% labels = repmat(class_labels,total_person,1);
+% % labels = repmat(class_labels,total_emotion,1);
 % labels = labels(:);
-% 
-% temp_resized_alpha = [labels,resized_alpha];
-% indices = randperm(9*total,numtest);
-% train_set_X = temp_resized_alpha(setdiff([1:(9*total)],indices),:);
+% temp_resized = [labels,resized_alpha_emotion];
+% % temp_resized = [labels,resized_theta_person];
+
+% indices = randperm(total,numtest);
+% train_set_X = temp_resized(setdiff([1:total],indices),:);
 % train_set_Y = train_set_X(:,1);
 % train_set_X = train_set_X(:,2:end);
-% test_set_X = temp_resized_alpha(indices,:);
+% test_set_X = temp_resized(indices,:);
 % test_set_Y = test_set_X(:,1);
 % test_set_X = test_set_X(:,2:end);
 % 
-% YNB = fitcnb(train_set_X, train_set_Y);
-% prediction = predict(YNB,test_set_X);
-% Accuracy = (nnz((res==test_set_Y))/numtest)*100
+% YSVM = fitctree(train_set_X, train_set_Y);
+% prediction = predict(YSVM,test_set_X);
+% Accuracy = (nnz((prediction==test_set_Y))/numtest)*100
 
+% ---------------------------------------------------------------------
 
 % Try supervized by taking 179 train, 1 test, do this 180 times
 
@@ -158,69 +190,119 @@ end
 % % Hopeless, NB gives 6% accuracy
 % Accuracy = (nnz((outputs_obtained==outputs_actual))/180)*100
 
+% --------------------------------------------------------------
 
-% Test multi class using fitcecoc
-% X = [1,2;3,4;7,1;9,9;5,7;-1,2;-3,4;-7,1;-9,9;-5,7;
-%     -1,-2;-3,-4;-7,-1;-9,-9;-5,-7;1,-2;3,-4;7,-1;9,-9;5,-7;]
-% Y = [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4];
-% Z = [-1,8;-6,-4;7,-9;8,3;5,9;-6,-7;3,-2];
-% W = [2;3;4;1;1;3;4];
-% Mdl = fitcecoc(X,Y);
-% Y_predicted = predict(Mdl,Z);
-% Accuracy = (nnz((Y_predicted==W))/numel(Y_predicted))*100
+% Leave one subject out
 
-% Mdl = fitglm(resized_train_alpha,train_Y);
-% Y_predicted = predict(Mdl,resized_test_alpha);
-% Y_predicted = cell2mat(Y_predicted);
-% Y_predicted = str2num(Y_predicted);
-% Accuracy = (nnz((Y_predicted==test_Y))/numel(Y_predicted))*100
+% outputs_obtained = zeros(180,1);
+% labels = [1;2;3;4;5;6;7;8;9];
+% labels = repmat(labels,1,20);
+% labels = labels(:);
+% outputs_actual = labels;
+% temp_resized = [labels, resized_alpha_person];
+% 
+% for i = 1:20
+%     train_set_X = [temp_resized(1:(9*(i-1)),:);temp_resized(9*i+1:180,:)];
+%     train_set_Y = train_set_X(:,1);
+%     train_set_X = train_set_X(:,2:end);
+%     NBStruct = fitcnb(train_set_X,train_set_Y);
+%     outputs_obtained(((i-1)*9+1):(i*9),:) = predict(NBStruct, resized_alpha_person(9*(i-1)+1:9*i,:));
+% end
+% 
+% Accuracy = (nnz((outputs_obtained==outputs_actual))/180)*100
 
+% --------------------------------------------------------------
+
+% Leave one emotion out
+
+outputs_obtained = zeros(180,1);
+labels = [1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20];
+labels = repmat(labels,1,9);
+labels = labels(:);
+outputs_actual = labels;
+temp_resized = [labels, resized_alpha_person];
+
+for i = 1:9
+    train_set_X = [temp_resized(1:(20*(i-1)),:);temp_resized(20*i+1:180,:)];
+    train_set_Y = train_set_X(:,1);
+    train_set_X = train_set_X(:,2:end);
+    NBStruct = fitcnb(train_set_X,train_set_Y);
+    outputs_obtained(((i-1)*20+1):(i*20),:) = predict(NBStruct, resized_alpha_person(20*(i-1)+1:20*i,:));
+end
+
+Accuracy = (nnz((outputs_obtained==outputs_actual))/180)*100
 
 
 % --------------------------------------------------------------------
 % UNSUPERVISED
 
 % K-means and K-medoids
+orig_resized_alpha = resized_alpha_person;
 
-% alpha_idx = kmeans(resized_alpha,2);
-% beta_idx = kmeans(resized_beta,2,'Distance','correlation');
-% theta_idx = kmeans(resized_theta,2,'Distance','correlation');
-% alpha_idx1 = kmedoids(resized_alpha,2,'Distance','spearman');
-% beta_idx1 = kmedoids(resized_beta,2,'Distance','spearman');
-% theta_idx1 = kmedoids(resized_theta,2,'Distance','spearman');
+% plot(alpha_idx);
+% beta_idx = kmeans(resized_beta_emotion,2,'Distance','correlation');
+% theta_idx = kmeans(resized_theta_emotion,2,'Distance','correlation');
+% alpha_idx1 = kmedoids(resized_alpha_emotion,2,'Distance','spearman');
+% beta_idx1 = kmedoids(resized_beta_emotion,2,'Distance','spearman');
+% theta_idx1 = kmedoids(resized_theta_emotion,2,'Distance','spearman');
 
 
 answerclass = zeros(1,180); %row matrix
 sizes = zeros(1,1);
 
-original_resized_alpha = resized_alpha;
-original_resized_alpha = resized_beta;
-original_resized_alpha = resized_theta;
-
-% Try by changing order (switch Bhayanakam and Hasyam)- VERY SURPRISING, STILL DOES SAME GROUPING
-resized_alpha = [resized_alpha(1:20,:);resized_alpha(61:80,:);resized_alpha(41:60,:);resized_alpha(21:40,:);resized_alpha(81:180,:)];
-
+% original_resized_alpha = resized_alpha;
+% original_resized_alpha = resized_beta;
+% original_resized_alpha = resized_theta;
+% 
+% % Try by changing order (switch Bhayanakam and Hasyam)- VERY SURPRISING, STILL DOES SAME GROUPING
+% resized_alpha = [resized_alpha(1:20,:);resized_alpha(61:80,:);resized_alpha(41:60,:);resized_alpha(21:40,:);resized_alpha(81:180,:)];
+ 
 sno = [1:180]';
-resized_alpha = [sno,resized_alpha];
-resized_beta = [sno,resized_beta];
-resized_theta = [sno,resized_theta];
+resized_alpha_person = [sno,resized_alpha_person];
+resized_beta_person = [sno,resized_beta_person];
+resized_theta_person = [sno,resized_theta_person];
 
+centres = zeros(1,128);
+% [answerclass,sizes] = performKmeans(resized_alpha_person, answerclass, sizes);
+[answerclass,sizes,centres] = performKmeans(resized_alpha_person, answerclass, sizes, zeros(1,128), centres);
+getGlobalx()-1
+num_clusters = getGlobalx()-1;
 
-[answerclass,sizes] = performKmeans(resized_beta, answerclass, sizes);
-% answerclass = performKmeans(resized_beta, answerclass)
-% answerclass = performKmeans(resized_theta, answerclass)
+% -----------------------------
+% perform merging
 
-reshaped_answerclass_emotion = reshape(answerclass,20,9);
-[mode_emotion, freq_emotion] = mode(reshaped_answerclass_emotion);
-reshaped_answerclass_person = reshaped_answerclass_emotion';
+new_sizes = sizes;
+redundant_clusters = find(sizes<6);
+acc_num_clusters = num_clusters - size(redundant_clusters,2);
+acceptable_clusters = find(sizes>=6);
+acceptable_centres = [[1:num_clusters]',centres];
+acceptable_centres = acceptable_centres(acceptable_clusters,:);
+new_sizes(redundant_clusters) = 0;
+
+for m = 1:size(redundant_clusters,2)
+    dist = zeros(1,size(acceptable_clusters,2));
+    res = find(answerclass==redundant_clusters(1,m));
+    for b = 1:size(res,2)
+        for n = 1:size(acceptable_clusters,2)
+            dist(1,n) = norm(resized_alpha_person(res(1,b),2:129)-acceptable_centres(n,2:129)); 
+        end
+        [minimum,ind] = min(dist);
+        answerclass(res(1,b)) = acceptable_centres(ind,1);
+        new_sizes(acceptable_centres(ind,1)) = new_sizes(acceptable_centres(ind,1)) + 1;
+    end
+end
+
+% -----------------------------
+
+reshaped_answerclass_person = reshape(answerclass,9,20);
 [mode_person, freq_person] = mode(reshaped_answerclass_person);
+reshaped_answerclass_emotion = reshaped_answerclass_person';
+[mode_emotion, freq_emotion] = mode(reshaped_answerclass_emotion);
 
 
 % for alpha - 16 clusters with seed 4
 % for beta - 22 clusters with seed 4
 % for theta - 20 clusters with seed 4
-
-num_clusters = getGlobalx()-1;
 
 % Confusion Matrix
 confmat_emotion = zeros(9,num_clusters);
@@ -238,6 +320,31 @@ for i = 1:9
         confmat_person(j,get) = confmat_person(j,get)+1; 
     end
 end
+
+
+cluster_info = zeros(num_clusters,1);
+
+for u = 1:num_clusters
+    cluster_info(u,1:size(find(answerclass==u),2)) = find(answerclass==u);
+    hist(u) = size(find(answerclass==u),2);
+end
+
+% figure;
+% histogram(hist)
+% figure;
+% bar(hist)
+
+for u = 1:acc_num_clusters
+    figure;
+    topoplot(acceptable_centres(u,2:129),chanlocs);
+    colorbar;
+end
+
+
+% alpha_idx = kmedoids(orig_resized_alpha,num_clusters);
+% ans = find(alpha_idx==1);
+% ans = reshape(alpha_idx,9,20);
+
 
 % Cannot form a good diagonal if repetition
 
@@ -281,3 +388,5 @@ end
 % for i = 1:20
 %     classif = classif + (temp2(i,:) == 2);
 % end
+
+% ------------------------------------------------------------
