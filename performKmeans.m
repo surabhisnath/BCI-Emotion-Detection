@@ -1,19 +1,41 @@
-function [answerclass,sizes] = performKmeans(resized_alpha, answerclass, sizes)
+% function [answerclass,sizes] = performKmeans(resized_alpha, answerclass, sizes)
+%     if size(resized_alpha,1) <= 20
+%         t = getGlobalx();    % get counter
+%         sizes(1,t) = size(resized_alpha,1);
+%         answerclass(resized_alpha(:,1)) = t;
+%         setGlobalx(t+1);
+%         return;
+%     else
+%         alpha_idx1 = kmedoids(resized_alpha(:,2:129),2);
+%         resized_alpha1 = resized_alpha(find(alpha_idx1==1),:);
+%         resized_alpha2 = resized_alpha(find(alpha_idx1==2),:);
+%     
+%         [answerclass,sizes] = performKmeans(resized_alpha1, answerclass, sizes);
+%         [answerclass,sizes] = performKmeans(resized_alpha2, answerclass, sizes);
+%     end
+% end
+
+function [answerclass,sizes,centres] = performKmeans(resized_alpha, answerclass, sizes, c, centres)
     if size(resized_alpha,1) <= 20
         t = getGlobalx();    % get counter
         sizes(1,t) = size(resized_alpha,1);
+        centres(t,:) = c;
         answerclass(resized_alpha(:,1)) = t;
         setGlobalx(t+1);
         return;
     else
-        alpha_idx1 = kmedoids(resized_alpha(:,2:129),2);
+        [alpha_idx1,c] = kmedoids(resized_alpha(:,2:129),2);
         resized_alpha1 = resized_alpha(find(alpha_idx1==1),:);
         resized_alpha2 = resized_alpha(find(alpha_idx1==2),:);
     
-        [answerclass,sizes] = performKmeans(resized_alpha1, answerclass, sizes);
-        [answerclass,sizes] = performKmeans(resized_alpha2, answerclass, sizes);
+        [answerclass,sizes,centres] = performKmeans(resized_alpha1, answerclass, sizes, c(1,:), centres);
+        [answerclass,sizes,centres] = performKmeans(resized_alpha2, answerclass, sizes, c(2,:), centres);
     end
 end
+
+
+
+
 
 % while(size(find(alpha_idx1==1),1)>20 | size(find(alpha_idx1==2),1)>20)
 %     
